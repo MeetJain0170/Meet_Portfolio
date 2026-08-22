@@ -13,6 +13,9 @@ const CYAN = "0,229,255";
 const WHITE = "238,243,255";
 const MIN_ALPHA = 0.01;
 
+// Small visual lift for synapse ropes only.
+const SYNAPSE_Y_OFFSET = -18;
+
 const clamp = (
   value: number,
   min = 0,
@@ -239,7 +242,7 @@ export function drawParticles(
 /*                                                                            */
 /* This is the critical change. We do NOT run node endpoints through          */
 /* camera.projectNeuron() for synapses. That was creating a second coordinate */
-/* system and is why the wires could float away from the actual DOM nodes.     */
+/* system and is why the wires could float away from the actual DOM nodes.    */
 /* -------------------------------------------------------------------------- */
 
 function getNodePoint(
@@ -371,85 +374,69 @@ function getRopeControlPoint(
   startX: number,
   startY: number,
   endX: number,
-  endY: number
+  endY: number,
+  time: number
 ) {
-  const dx =
-    endX - startX;
+  const dx = endX - startX;
+  const dy = endY - startY;
 
-  const dy =
-    endY - startY;
+  const distance = Math.hypot(dx, dy);
 
-  const distance =
-    Math.hypot(dx, dy);
-
-  if (
-    !Number.isFinite(distance) ||
-    distance < 2
-  ) {
+  if (!Number.isFinite(distance) || distance < 2) {
     return {
       x: (startX + endX) * 0.5,
       y: (startY + endY) * 0.5,
     };
   }
 
-  const midX =
-    (startX + endX) * 0.5;
+  const midX = (startX + endX) * 0.5;
+  const midY = (startY + endY) * 0.5;
 
-  const midY =
-    (startY + endY) * 0.5;
-
-  const dragging =
-    from.dragging ||
-    to.dragging;
+  const dragging = from.dragging || to.dragging;
 
   if (!dragging) {
+    // VERY subtle organic synapse movement
+    const nx = -dy / distance;
+    const ny = dx / distance;
+
+    const wiggle =
+      Math.sin(time * 0.0012 + edge.seed * 3.7) * 2.2;
+
     return {
-      x: midX,
-      y: midY,
+      x: midX + nx * wiggle,
+      y: midY + ny * wiggle,
     };
   }
 
-  const nx =
-    -dy / distance;
+  // Existing drag physics
+  const nx = -dy / distance;
+  const ny = dx / distance;
 
-  const ny =
-    dx / distance;
+  const rawX = Number.isFinite(edge.sagX)
+    ? edge.sagX
+    : midX;
 
-  const rawX =
-    Number.isFinite(edge.sagX)
-      ? edge.sagX
-      : midX;
+  const rawY = Number.isFinite(edge.sagY)
+    ? edge.sagY
+    : midY;
 
-  const rawY =
-    Number.isFinite(edge.sagY)
-      ? edge.sagY
-      : midY;
-
-  const offsetX =
-    rawX - midX;
-
-  const offsetY =
-    rawY - midY;
+  const offsetX = rawX - midX;
+  const offsetY = rawY - midY;
 
   const perpendicular =
     offsetX * nx +
     offsetY * ny;
 
-  const maxSag =
-    Math.min(
-      70,
-      Math.max(
-        10,
-        distance * 0.12
-      )
-    );
+  const maxSag = Math.min(
+    70,
+    Math.max(10, distance * 0.12)
+  );
 
-  const safeSag =
-    clamp(
-      perpendicular,
-      -maxSag,
-      maxSag
-    );
+  const safeSag = clamp(
+    perpendicular,
+    -maxSag,
+    maxSag
+  );
 
   return {
     x: midX + nx * safeSag,
@@ -477,7 +464,8 @@ interface RopeGeometry {
 function getRopeGeometry(
   edge: Synapse,
   from: Neuron,
-  to: Neuron
+  to: Neuron,
+  time: number
 ): RopeGeometry | null {
   const a =
     getNodePoint(from);
@@ -492,9 +480,9 @@ function getRopeGeometry(
   const attachment =
     getAttachmentPoints(
       a.x,
-      a.y,
+      a.y + SYNAPSE_Y_OFFSET,
       b.x,
-      b.y
+      b.y + SYNAPSE_Y_OFFSET
     );
 
   const distance =
@@ -521,7 +509,8 @@ function getRopeGeometry(
       attachment.startX,
       attachment.startY,
       attachment.endX,
-      attachment.endY
+      attachment.endY,
+      time
     );
 
   return {
@@ -602,7 +591,8 @@ export function drawSynapse(
     getRopeGeometry(
       edge,
       from,
-      to
+      to,
+      _simCtx.time
     );
 
   if (!geometry) {
@@ -650,8 +640,7 @@ export function drawSynapse(
 
   ctx.strokeStyle =
     `rgba(${color},${(
-      0.11 +
-      energy * 0.10
+      0.035 + energy * 0.035
     ) * opacity})`;
 
   ctx.lineWidth =
@@ -662,7 +651,7 @@ export function drawSynapse(
   ctx.lineJoin = "round";
 
   ctx.shadowColor =
-    `rgba(${color},${0.8 * opacity})`;
+    `rgba(${color},${0.25 * opacity})`;
 
   ctx.shadowBlur =
     13 +
@@ -684,8 +673,7 @@ export function drawSynapse(
 
   ctx.strokeStyle =
     `rgba(${color},${(
-      0.20 +
-      energy * 0.15
+      0.075 + energy * 0.06
     ) * opacity})`;
 
   ctx.lineWidth =
@@ -695,7 +683,7 @@ export function drawSynapse(
   ctx.lineCap = "round";
 
   ctx.shadowColor =
-    `rgba(${color},${0.65 * opacity})`;
+    `rgba(${color},${0.30 * opacity})`;
 
   ctx.shadowBlur =
     6 +
@@ -717,8 +705,7 @@ export function drawSynapse(
 
   ctx.strokeStyle =
     `rgba(${color},${(
-      0.48 +
-      energy * 0.30
+      0.22 + energy * 0.14
     ) * opacity})`;
 
   ctx.lineWidth =
@@ -729,7 +716,7 @@ export function drawSynapse(
   ctx.lineJoin = "round";
 
   ctx.shadowColor =
-    `rgba(${color},${0.85 * opacity})`;
+    `rgba(${color},${0.35 * opacity})`;
 
   ctx.shadowBlur =
     2 +
@@ -790,11 +777,11 @@ export function drawSynapse(
       particleCount <= 1
         ? 0.5
         : 0.25 +
-          (
-            i /
-            (particleCount - 1)
-          ) *
-          0.50;
+        (
+          i /
+          (particleCount - 1)
+        ) *
+        0.50;
 
     const point =
       quadraticPoint(
@@ -900,7 +887,8 @@ export function drawSignals(
       getRopeGeometry(
         edge,
         from,
-        to
+        to,
+        simCtx.time
       );
 
     if (!geometry) {
@@ -936,15 +924,15 @@ export function drawSignals(
     const trailProgress =
       signal.direction === 1
         ? Math.max(
-            0,
-            progress -
-            trailDistance
-          )
+          0,
+          progress -
+          trailDistance
+        )
         : Math.min(
-            1,
-            progress +
-            trailDistance
-          );
+          1,
+          progress +
+          trailDistance
+        );
 
     const trail =
       quadraticPoint(
@@ -961,12 +949,12 @@ export function drawSignals(
       signal.energy > 0.75
         ? WHITE
         : depthColor(
-            Math.max(
-              from.depth,
-              to.depth
-            ),
-            signal.energy
-          );
+          Math.max(
+            from.depth,
+            to.depth
+          ),
+          signal.energy
+        );
 
     /*
      * Signal trail.
@@ -1224,9 +1212,9 @@ export function drawNeuron(
       neuron.scale
     )
       ? Math.max(
-          0,
-          neuron.scale
-        )
+        0,
+        neuron.scale
+      )
       : 0;
 
   const opacity =
@@ -1234,8 +1222,8 @@ export function drawNeuron(
       neuron.opacity
     )
       ? clamp(
-          neuron.opacity
-        )
+        neuron.opacity
+      )
       : 0;
 
   const radius =

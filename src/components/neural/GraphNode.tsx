@@ -78,6 +78,7 @@ export default function GraphNode({
 
   const active = isHovered || isOnPath;
   const core = node.kind === "core";
+  const activeCore = core || isOnPath; // depending on your intended behavior
   const action = node.kind === "action";
 
   // Leaf / detail nodes ALWAYS show their labels.
@@ -185,7 +186,7 @@ export default function GraphNode({
             height: size * 2.5,
             borderColor: `${color}65`,
             boxShadow: `0 0 16px ${color}28`,
-            animation: "node-ring 1.7s ease-out infinite",
+            animation: "node-ring 2s ease-out infinite",
           }}
         />
       )}
@@ -232,8 +233,12 @@ export default function GraphNode({
           style={{
             width: size * 2.2,
             height: size * 2.2,
+            left: "25.5%",
+            top: "-15%",
+            transform: "translate(-50%, -50%)",
+            transformOrigin: "center center",
             borderColor: `${color}35`,
-            animation: "core-pulse 2.4s ease-in-out infinite",
+            animation: "node-ring 1s ease-out infinite",
           }}
         />
       )}

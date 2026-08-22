@@ -49,15 +49,6 @@ button {
   box-shadow: 0 0 8px 2px #00e5ff, 0 0 40px 12px rgba(0, 229, 255, 0.25);
   animation: corepulse 3.4s ease-in-out infinite;
 }
-@keyframes corepulse {
-  0%,
-  100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.6);
-  }
-}
 
 .ring-spin {
   animation-name: ringspin;

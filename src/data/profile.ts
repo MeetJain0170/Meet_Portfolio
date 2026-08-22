@@ -1,5 +1,5 @@
 export const profile = {
-  name: "MEET",
+  name: "Meet",
 
   roles: ["AI / ML ENGINEER"],
 
