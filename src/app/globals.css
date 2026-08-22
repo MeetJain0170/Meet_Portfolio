@@ -1,0 +1,392 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-display: "Orbitron", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+  --font-body: "Inter", sans-serif;
+}
+
+html,
+body {
+  background: #04050a;
+  color: #eef3ff;
+  overflow: hidden;
+  height: 100%;
+  font-family: var(--font-body);
+}
+
+::selection {
+  background: #8a2bff;
+  color: #eef3ff;
+}
+
+button {
+  font-family: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  padding: 0;
+}
+
+:focus-visible {
+  outline: 2px solid #00e5ff;
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.node-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  pointer-events: auto;
+}
+
+.core-pulse {
+  box-shadow: 0 0 8px 2px #00e5ff, 0 0 40px 12px rgba(0, 229, 255, 0.25);
+  animation: corepulse 3.4s ease-in-out infinite;
+}
+@keyframes corepulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.6);
+  }
+}
+
+.ring-spin {
+  animation-name: ringspin;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+@keyframes ringspin {
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+/* Skip link */
+.skip-link {
+  position: fixed;
+  top: -100px;
+  left: 12px;
+  z-index: 9999;
+  background: #0a0e1c;
+  color: #00e5ff;
+  padding: 10px 16px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  border: 1px solid #00e5ff;
+  transition: top 0.2s ease;
+}
+.skip-link:focus {
+  top: 12px;
+}
+
+/* Accessible / SEO text fallback: hidden until focus lands inside it */
+.sr-fallback {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  left: -9999px;
+}
+.sr-fallback:focus-within {
+  position: fixed;
+  inset: 0;
+  left: 0;
+  z-index: 950;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background: #04050a;
+  color: #eef3ff;
+  padding: 60px 8vw;
+}
+.sr-fallback h1 {
+  font-family: var(--font-display);
+  letter-spacing: 3px;
+  font-size: 28px;
+}
+.sr-fallback h2 {
+  font-family: var(--font-mono);
+  color: #00e5ff;
+  letter-spacing: 2px;
+  margin-top: 40px;
+}
+.sr-fallback a {
+  display: inline-block;
+  margin: 4px 12px 4px 0;
+  color: #00e5ff;
+}
+.sr-fallback p {
+  max-width: 640px;
+  line-height: 1.7;
+  color: #c6cee8;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .core-pulse,
+  .ring-spin {
+    animation: none !important;
+  }
+}
+
+/* =========================================================
+   NEURAL CURSOR
+   ========================================================= */
+
+@media (pointer: fine) {
+  html,
+  body,
+  button,
+  a {
+    cursor: none !important;
+  }
+
+  .neural-cursor {
+    position: fixed;
+
+    width: 30px;
+    height: 30px;
+
+    transform: translate(-50%, -50%);
+
+    pointer-events: none;
+
+    z-index: 99999;
+
+    opacity: 0;
+
+    transition:
+      opacity 180ms ease,
+      transform 160ms cubic-bezier(0.22, 1, 0.36, 1);
+
+    mix-blend-mode: screen;
+  }
+
+  .neural-cursor-visible {
+    opacity: 1;
+  }
+
+  /* ---------------------------------------------------------
+     CORE
+     --------------------------------------------------------- */
+
+  .neural-cursor-core {
+    position: absolute;
+
+    left: 50%;
+    top: 50%;
+
+    width: 4px;
+    height: 4px;
+
+    transform: translate(-50%, -50%);
+
+    border-radius: 999px;
+
+    background: #ffffff;
+
+    box-shadow:
+      0 0 4px rgba(255, 255, 255, 1),
+      0 0 10px rgba(0, 229, 255, 0.95),
+      0 0 20px rgba(0, 229, 255, 0.55);
+  }
+
+  /* ---------------------------------------------------------
+     TARGETING BRACKETS
+     --------------------------------------------------------- */
+
+  .neural-cursor-bracket {
+    position: absolute;
+
+    width: 7px;
+    height: 7px;
+
+    border-color: rgba(0, 229, 255, 0.8);
+
+    transition:
+      all 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .neural-cursor-bracket-tl {
+    left: 2px;
+    top: 2px;
+
+    border-top: 1px solid;
+    border-left: 1px solid;
+  }
+
+  .neural-cursor-bracket-tr {
+    right: 2px;
+    top: 2px;
+
+    border-top: 1px solid;
+    border-right: 1px solid;
+  }
+
+  .neural-cursor-bracket-bl {
+    left: 2px;
+    bottom: 2px;
+
+    border-bottom: 1px solid;
+    border-left: 1px solid;
+  }
+
+  .neural-cursor-bracket-br {
+    right: 2px;
+    bottom: 2px;
+
+    border-bottom: 1px solid;
+    border-right: 1px solid;
+  }
+
+  /* ---------------------------------------------------------
+     VERY SUBTLE CROSSHAIR
+     --------------------------------------------------------- */
+
+  .neural-cursor-line {
+    position: absolute;
+
+    background: rgba(0, 229, 255, 0.12);
+
+    opacity: 0;
+
+    transition: opacity 180ms ease;
+  }
+
+  .neural-cursor-line-x {
+    left: -5px;
+    right: -5px;
+
+    top: 50%;
+
+    height: 1px;
+
+    transform: translateY(-50%);
+  }
+
+  .neural-cursor-line-y {
+    top: -5px;
+    bottom: -5px;
+
+    left: 50%;
+
+    width: 1px;
+
+    transform: translateX(-50%);
+  }
+
+  /* ---------------------------------------------------------
+     SECONDARY ORBIT POINT
+     --------------------------------------------------------- */
+
+  .neural-cursor-orbit {
+    position: absolute;
+
+    left: 50%;
+    top: 50%;
+
+    width: 2px;
+    height: 2px;
+
+    transform:
+      translate(-50%, -50%)
+      translateX(12px);
+
+    border-radius: 50%;
+
+    background: rgba(0, 229, 255, 0.7);
+
+    box-shadow:
+      0 0 7px rgba(0, 229, 255, 0.8);
+
+    animation:
+      neural-cursor-orbit 2.8s linear infinite;
+  }
+
+  /* ---------------------------------------------------------
+     HOVER / INTERACTIVE STATE
+     --------------------------------------------------------- */
+
+  .neural-cursor-interactive {
+    transform:
+      translate(-50%, -50%)
+      scale(1.35);
+  }
+
+  .neural-cursor-interactive
+    .neural-cursor-bracket {
+    border-color: rgba(255, 255, 255, 0.95);
+  }
+
+  .neural-cursor-interactive
+    .neural-cursor-line {
+    opacity: 1;
+  }
+
+  .neural-cursor-interactive
+    .neural-cursor-core {
+    width: 5px;
+    height: 5px;
+
+    box-shadow:
+      0 0 5px rgba(255, 255, 255, 1),
+      0 0 14px rgba(0, 229, 255, 1),
+      0 0 28px rgba(0, 229, 255, 0.65);
+  }
+
+  /* ---------------------------------------------------------
+     ORBIT ANIMATION
+     --------------------------------------------------------- */
+
+  @keyframes neural-cursor-orbit {
+    from {
+      transform:
+        translate(-50%, -50%)
+        rotate(0deg)
+        translateX(12px);
+    }
+
+    to {
+      transform:
+        translate(-50%, -50%)
+        rotate(360deg)
+        translateX(12px);
+    }
+  }
+}
+
+
+/* =========================================================
+   TOUCH DEVICES
+   ========================================================= */
+
+@media (pointer: coarse) {
+  .neural-cursor {
+    display: none;
+  }
+}
+
+@keyframes node-ring {
+  0% {
+    transform: scale(0.7);
+    opacity: 0.8;
+  }
+
+  70% {
+    transform: scale(1.5);
+    opacity: 0.15;
+  }
+
+  100% {
+    transform: scale(1.7);
+    opacity: 0;
+  }
+}
