@@ -1,11 +1,4 @@
-import {
-  Neuron,
-  Particle,
-  Pulse,
-  Signal,
-  SimContext,
-  Synapse,
-} from "./types";
+import {Neuron,Particle,Pulse,Signal,SimContext,Synapse,} from "./types";
 
 const TAU = Math.PI * 2;
 
