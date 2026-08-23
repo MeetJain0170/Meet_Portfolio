@@ -16,7 +16,7 @@ export default function SystemHUD({
   const nested = breadcrumb.length > 1;
 
   const activeCluster =
-    breadcrumb[breadcrumb.length - 1]?.label ?? "MEET";
+    breadcrumb[breadcrumb.length - 1]?.label ?? "MEET JAIN";
 
   /*
    * =========================================================
@@ -171,7 +171,7 @@ export default function SystemHUD({
               color: HUD.text,
             }}
           >
-            MEET{" "}
+            MEET JAIN{" "}
             <span style={{ color: HUD.subtleText }}>
               //
             </span>{" "}

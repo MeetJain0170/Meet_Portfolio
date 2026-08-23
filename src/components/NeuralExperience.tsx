@@ -245,7 +245,7 @@ export default function NeuralExperience() {
    * feedback below, never for deciding what layoutGraph() renders.
    * ================================================================ */
 
-  const focusId = activePath[activePath.length - 1] ?? "meet";
+  const focusId = activePath[activePath.length - 1] ?? "meet jain";
 
   const focusNode =
     nodeMap.get(focusId) ?? graphRoot;

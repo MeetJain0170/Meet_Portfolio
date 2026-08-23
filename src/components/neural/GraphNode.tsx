@@ -315,7 +315,7 @@ export default function GraphNode({
       {/* Metadata */}
       {active && node.meta?.length ? (
         <span
-          className="pointer-events-none mt-1 whitespace-nowrap font-mono text-[10px] tracking-[1.5px]"
+          className="pointer-events-none mt-1 whitespace-nowrap font-mono text-[16px] tracking-[1.5px]"
           style={{
             color: `${color}99`,
             opacity: 0.9,
