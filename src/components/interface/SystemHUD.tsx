@@ -277,7 +277,7 @@ export default function SystemHUD({
             <span style={{ color: HUD.mutedText }}>
               NODE_ID:{" "}
               <b style={{ color: "rgba(167,139,250,0.95)" }}>
-                0x04A7
+                679_420
               </b>
             </span>
 

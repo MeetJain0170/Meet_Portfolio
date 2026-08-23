@@ -398,3 +398,56 @@ button {
     opacity: -0.5;
   }
 }
+
+/* =========================================================
+   RESPONSIVE NEURAL NODE UI
+   ========================================================= */
+
+.neural-node-label {
+  font-size: clamp(7px, 0.65vw, 11px);
+  letter-spacing: clamp(1px, 0.14vw, 2.5px);
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.neural-node-subtitle {
+  font-size: clamp(6px, 0.48vw, 9px);
+  letter-spacing: clamp(0.7px, 0.1vw, 1.8px);
+  line-height: 1.1;
+}
+
+@media (max-width: 1100px) {
+  .neural-node-label {
+    font-size: clamp(7px, 0.72vw, 9px);
+    letter-spacing: clamp(0.8px, 0.12vw, 1.8px);
+  }
+
+  .neural-node-subtitle {
+    font-size: clamp(6px, 0.52vw, 8px);
+    letter-spacing: 0.8px;
+  }
+}
+
+@media (max-width: 700px) {
+  .neural-node-label {
+    font-size: clamp(6px, 1.9vw, 8px);
+    letter-spacing: 0.8px;
+  }
+
+  .neural-node-subtitle {
+    font-size: clamp(5px, 1.45vw, 7px);
+    letter-spacing: 0.5px;
+  }
+}
+
+@media (max-width: 450px) {
+  .neural-node-label {
+    font-size: clamp(5.5px, 1.75vw, 7px);
+    letter-spacing: 0.5px;
+  }
+
+  .neural-node-subtitle {
+    font-size: 5px;
+    letter-spacing: 0.35px;
+  }
+}

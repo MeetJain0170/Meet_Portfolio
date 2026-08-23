@@ -20,6 +20,13 @@ const TAU = Math.PI * 2;
 const clamp = (v: number, min: number, max: number) =>
   Math.max(min, Math.min(max, v));
 
+const responsiveScale = (width: number, height: number) =>
+  clamp(
+    Math.min(width / 1536, height / 1078),
+    0.35,
+    1
+  );
+
 /* -------------------------------------------------------------------------- */
 /* Stable deterministic randomness                                            */
 /* -------------------------------------------------------------------------- */
@@ -86,11 +93,14 @@ function layoutNormalFocus(
   if (!children.length) return;
 
   const viewport = Math.min(width, height);
+  const scale = responsiveScale(width, height);
 
-  const radius = clamp(
-    Math.max(baseRadius * 1.45, viewport * 0.22),
-    baseRadius * 1.3,
-    viewport * 0.34
+  const radius = Math.min(
+    viewport * 0.32,
+    Math.max(
+      baseRadius * 1.45,
+      viewport * (0.20 + 0.04 * scale)
+    )
   );
 
   const spacing = TAU / children.length;
@@ -148,12 +158,15 @@ function layoutDetailConstellation(
   const hubs = focus.children ?? [];
 
   if (!hubs.length) return;
-
   const viewport = Math.min(width, height);
+  const scale = responsiveScale(width, height);
 
   const hubRadius = clamp(
-    Math.max(baseRadius * 1.45, viewport * 0.16),
-    viewport * 0.13,
+    Math.max(
+      baseRadius * 1.45 * scale,
+      viewport * 0.16
+    ),
+    viewport * 0.11,
     viewport * 0.22
   );
 
@@ -177,10 +190,25 @@ function layoutDetailConstellation(
     const hubY =
       cy + Math.sin(hubAngle) * hubRadius;
 
+    const safeX = Math.max(60, width * 0.045);
+    const safeY = Math.max(60, height * 0.055);
+
+    const boundedHubX = clamp(
+      hubX,
+      safeX,
+      width - safeX
+    );
+
+    const boundedHubY = clamp(
+      hubY,
+      safeY,
+      height - safeY
+    );
+
     out.set(hub.id, {
       id: hub.id,
-      x: hubX,
-      y: hubY,
+      x: boundedHubX,
+      y: boundedHubY,
       angleDeg: hubAngle / DEG,
       depth: depth + 1,
       parentId: focus.id,
@@ -205,15 +233,17 @@ function layoutDetailConstellation(
      * More technologies = more space.
      */
     const countBoost =
-      Math.max(0, leaves.length - 3) * 0.012;
+      Math.max(0, leaves.length - 3) *
+      0.012 *
+      scale;
 
     const leafRadius = clamp(
       Math.max(
-        baseRadius * 1.15,
+        baseRadius * 1.15 * scale,
         viewport * (0.12 + countBoost)
       ),
-      viewport * 0.10,
-      viewport * 0.20
+      viewport * 0.085,
+      viewport * 0.19
     );
 
     /*
@@ -268,12 +298,12 @@ function layoutDetailConstellation(
         Math.sin(localAngle) * radialDistance;
 
       const x =
-        hubX +
+        boundedHubX +
         outwardX * radial +
         tangentX * tangent;
 
       const y =
-        hubY +
+        boundedHubY +
         outwardY * radial +
         tangentY * tangent;
 
@@ -282,7 +312,10 @@ function layoutDetailConstellation(
         x,
         y,
         angleDeg:
-          Math.atan2(y - hubY, x - hubX) / DEG,
+          Math.atan2(
+            y - boundedHubY,
+            x - boundedHubX
+          ) / DEG,
         depth: depth + 2,
         parentId: hub.id,
         isFocus: false,
@@ -340,23 +373,23 @@ function layoutSkillsConstellation(
     return;
   }
 
-  const vw = Math.max(width, 900);
-  const vh = Math.max(height, 600);
+  /*
+   * Responsive reference:
+   * Desktop composition is based around 1536 × 1078.
+   *
+   * Smaller screens scale the distances down instead of
+   * pretending that the viewport is 900 × 600.
+   */
+  const scale = responsiveScale(width, height);
 
-  const TAU = Math.PI * 2;
+  const vw = width;
+  const vh = height;
+
+  const safeX = Math.max(55, vw * 0.055);
+  const safeY = Math.max(55, vh * 0.055);
+
   const DEG = 180 / Math.PI;
 
-  const clamp = (
-    value: number,
-    min: number,
-    max: number
-  ) => Math.max(min, Math.min(max, value));
-
-  /*
-   * Stable pseudo-random value.
-   * Gives every node tiny deterministic variation without
-   * causing the layout to jump between renders.
-   */
   const hash = (value: string) => {
     let h = 2166136261;
 
@@ -390,31 +423,20 @@ function layoutSkillsConstellation(
   const categoryCount = categories.length;
 
   /*
-   * Slightly wider than before.
-   *
-   * This gives the individual clusters enough breathing room.
+   * Same geometry as the working desktop layout,
+   * but proportional to the actual viewport.
    */
-  const radiusX = clamp(
+  const radiusX = Math.min(
     vw * 0.22,
-    260,
-    470
+    470 * scale
   );
 
-  const radiusY = clamp(
+  const radiusY = Math.min(
     vh * 0.18,
-    190,
-    330
+    330 * scale
   );
-
-  const marginX = 135;
-  const marginY = 105;
 
   categories.forEach((category, categoryIndex) => {
-    /*
-     * Categories are distributed around the central node.
-     *
-     * Start at the top and go clockwise.
-     */
     const angle =
       -Math.PI / 2 +
       (categoryIndex / categoryCount) * TAU;
@@ -429,18 +451,18 @@ function layoutSkillsConstellation(
       cy + dirY * radiusY;
 
     /*
-     * Keep category hubs safely inside the screen.
+     * Keep category hubs inside the real viewport.
      */
     categoryX = clamp(
       categoryX,
-      marginX,
-      vw - marginX
+      safeX,
+      vw - safeX
     );
 
     categoryY = clamp(
       categoryY,
-      marginY,
-      vh - marginY
+      safeY,
+      vh - safeY
     );
 
     out.set(category.id, {
@@ -459,28 +481,12 @@ function layoutSkillsConstellation(
     if (!children.length) return;
 
     /* -------------------------------------------------------------------- */
-    /* BRANCH BASIS                                                           */
+    /* BRANCH BASIS                                                          */
     /* -------------------------------------------------------------------- */
 
-    /*
-     * OUTWARD direction:
-     *
-     *       SKILLS
-     *          |
-     *          ↓
-     *        DATA
-     *          ↓
-     *       children
-     */
     const radialX = dirX;
     const radialY = dirY;
 
-    /*
-     * Tangent direction gives us the horizontal spread of the branch.
-     *
-     * For a top category this is basically LEFT ↔ RIGHT.
-     * For a left category it becomes UP ↕ DOWN.
-     */
     const tangentX = -radialY;
     const tangentY = radialX;
 
@@ -490,14 +496,6 @@ function layoutSkillsConstellation(
     /* RESPONSIVE BRANCH CONFIGURATION                                      */
     /* -------------------------------------------------------------------- */
 
-    /*
-     * Keep most clusters on ONE curved row.
-     *
-     * This is important.
-     *
-     * Your previous layout started creating little grids, which is what
-     * produced the ugly stacks at DATA and AI / LLM.
-     */
     let columns: number;
 
     if (count <= 6) {
@@ -508,61 +506,36 @@ function layoutSkillsConstellation(
       columns = 5;
     }
 
-    const rows = Math.ceil(count / columns);
-
     /*
-     * Wide horizontal separation.
+     * These used to have large fixed minimums.
+     * Now they scale with the viewport.
      */
     const siblingSpacing = clamp(
-      vw * 0.075,
-      78,
+      115 * scale,
+      42,
       115
     );
 
-    /*
-     * Distance from category → first child.
-     */
     const branchDistance = clamp(
-      Math.min(vw * 0.085, vh * 0.115),
-      82,
+      125 * scale,
+      58,
       125
     );
 
-    /*
-     * If a category eventually gets >6 children,
-     * additional rows are pushed outward.
-     */
     const rowSpacing = clamp(
-      vh * 0.055,
-      42,
+      58 * scale,
+      30,
       58
     );
 
-    /*
-     * CURVATURE.
-     *
-     * This is deliberately strong enough to actually see.
-     *
-     * Middle nodes are pushed OUTWARD.
-     * Outer nodes are pulled slightly TOWARD THE CENTER.
-     *
-     * Example:
-     *
-     *       ●       ●
-     *    ●             ●
-     *          HUB
-     */
     const curvature = clamp(
-      Math.min(
-        vw * 0.055,
-        vh * 0.075
-      ),
-      45,
+      85 * scale,
+      28,
       85
     );
 
     /* -------------------------------------------------------------------- */
-    /* CHILDREN                                                               */
+    /* CHILDREN                                                             */
     /* -------------------------------------------------------------------- */
 
     children.forEach((child, childIndex) => {
@@ -578,49 +551,26 @@ function layoutSkillsConstellation(
           count - row * columns
         );
 
-      /*
-       * Normalized horizontal position.
-       *
-       * -1 = far left
-        0 = center
-       * +1 = far right
-       */
       const t =
         itemsInRow === 1
           ? 0
           : (indexInRow /
-              (itemsInRow - 1)) *
-              2 -
-            1;
-
-      /* ------------------------------------------------------------------ */
-      /* HORIZONTAL SPREAD                                                    */
-      /* ------------------------------------------------------------------ */
+            (itemsInRow - 1)) *
+          2 -
+          1;
 
       const tangentDistance =
         t *
         siblingSpacing *
         ((itemsInRow - 1) / 2);
 
-      /*
-       * Tiny deterministic variation.
-       * VERY small so it doesn't destroy the geometry.
-       */
       const micro =
-        (hash(child.id) - 0.5) * 4;
-
-      /* ------------------------------------------------------------------ */
-      /* CURVED RADIAL DISTANCE                                               */
-      /* ------------------------------------------------------------------ */
+        (hash(child.id) - 0.5) *
+        Math.min(4, 4 * scale);
 
       /*
-       * Parabolic curve:
-       *
-       * t = -1       -> closer to center
-       * t =  0       -> farthest outward
-       * t = +1       -> closer to center
-       *
-       * This gives the branch its inward-facing curvature.
+       * Middle nodes are pushed outward.
+       * Outer nodes remain slightly closer to the hub.
        */
       const curveFactor =
         1 - t * t;
@@ -630,86 +580,60 @@ function layoutSkillsConstellation(
         curveFactor * curvature +
         row * rowSpacing;
 
-      /* ------------------------------------------------------------------ */
-      /* POSITION                                                             */
-      /* ------------------------------------------------------------------ */
-
       let x =
         categoryX +
         radialX * radialDistance +
-        tangentX *
-          tangentDistance;
+        tangentX * tangentDistance;
 
       let y =
         categoryY +
         radialY * radialDistance +
-        tangentY *
-          tangentDistance;
+        tangentY * tangentDistance;
 
-      /*
-       * Small deterministic offset along the tangent.
-       */
       x += tangentX * micro;
       y += tangentY * micro;
 
       /* ------------------------------------------------------------------ */
-      /* SCREEN BOUNDARY                                                      */
+      /* RESPONSIVE BOUNDARY                                                */
       /* ------------------------------------------------------------------ */
 
-      /*
-       * Do NOT hard-clamp immediately.
-       *
-       * First compress the branch toward its category.
-       * This preserves the curve.
-       */
-      const safeLeft = 90;
-      const safeRight = vw - 90;
-      const safeTop = 75;
-      const safeBottom = vh - 75;
+      const safeLeft = safeX;
+      const safeRight = vw - safeX;
+      const safeTop = safeY;
+      const safeBottom = vh - safeY;
 
+      /*
+       * Compress toward the category instead of simply
+       * teleporting/clamping nodes to the edge.
+       */
       const overflowLeft =
-        Math.max(
-          0,
-          safeLeft - x
-        );
+        Math.max(0, safeLeft - x);
 
       const overflowRight =
-        Math.max(
-          0,
-          x - safeRight
-        );
+        Math.max(0, x - safeRight);
 
       const overflowTop =
-        Math.max(
-          0,
-          safeTop - y
-        );
+        Math.max(0, safeTop - y);
 
       const overflowBottom =
-        Math.max(
-          0,
-          y - safeBottom
-        );
+        Math.max(0, y - safeBottom);
 
       if (overflowLeft > 0) {
-        x += overflowLeft * 0.9;
+        x += overflowLeft * 0.92;
       }
 
       if (overflowRight > 0) {
-        x -= overflowRight * 0.9;
+        x -= overflowRight * 0.92;
       }
 
       if (overflowTop > 0) {
-        y += overflowTop * 0.9;
+        y += overflowTop * 0.92;
       }
 
       if (overflowBottom > 0) {
-        y -= overflowBottom * 0.9;
+        y -= overflowBottom * 0.92;
       }
 
-      /*
-       * Final safety clamp.
-       */
       x = clamp(
         x,
         safeLeft,
@@ -722,24 +646,17 @@ function layoutSkillsConstellation(
         safeBottom
       );
 
-      /* ------------------------------------------------------------------ */
-      /* STORE NODE                                                           */
-      /* ------------------------------------------------------------------ */
-
       out.set(child.id, {
         id: child.id,
         x,
         y,
         depth: depth + 2,
-
         angleDeg:
           Math.atan2(
             y - categoryY,
             x - categoryX
           ) * DEG,
-
         parentId: category.id,
-
         isFocus: false,
         isOrbit: true,
       });
@@ -1039,4 +956,4 @@ export function layoutGraph(
   );
 
   return out;
-}
+} 
