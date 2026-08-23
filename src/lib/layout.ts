@@ -170,19 +170,38 @@ function layoutDetailConstellation(
     viewport * 0.22
   );
 
-  const sectors =
-    hubs.length === 3
-      ? [-Math.PI / 2, Math.PI * 0.82, Math.PI * 0.18]
-      : hubs.length === 4
-        ? [-Math.PI / 2, 0, Math.PI / 2, Math.PI]
-        : hubs.map(
-          (_, i) => -Math.PI / 2 + (TAU * i) / hubs.length
-        );
+  const sectors = hubs.map((hub, i) => {
+    const label = hub.label.toLowerCase();
+
+    // GitHub is always the top synapse.
+    if (label === "github") {
+      return -Math.PI / 2;
+    }
+
+    // Keep the remaining hubs distributed around the lower half.
+    const nonGithubHubs = hubs.filter(
+      (h) => h.label.toLowerCase() !== "github"
+    );
+
+    const nonGithubIndex = nonGithubHubs.indexOf(hub);
+
+    if (nonGithubHubs.length === 1) {
+      return Math.PI / 2;
+    }
+
+    return (
+      Math.PI * 0.18 +
+      (Math.PI * 0.64 * nonGithubIndex) /
+      (nonGithubHubs.length - 1)
+    );
+  });
 
   hubs.forEach((hub, hubIndex) => {
     const hubAngle =
-      sectors[hubIndex] +
-      (stableHash(hub.id) - 0.5) * 0.025;
+      hub.label.toLowerCase() === "github"
+        ? -Math.PI / 2
+        : sectors[hubIndex] +
+        (stableHash(hub.id) - 0.5) * 0.025;
 
     const hubX =
       cx + Math.cos(hubAngle) * hubRadius;
