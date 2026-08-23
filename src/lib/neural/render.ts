@@ -564,8 +564,11 @@ export function drawSynapse(
   edge: Synapse,
   from: Neuron,
   to: Neuron,
-  _simCtx: SimContext
+  simCtx: SimContext
 ) {
+  if (simCtx.focusId === "about") {
+    return;
+  }
   if (
     edge.state === "hidden" ||
     edge.opacity <= MIN_ALPHA ||
@@ -581,9 +584,7 @@ export function drawSynapse(
       to.opacity
     );
 
-  if (
-    endpointOpacity <= MIN_ALPHA
-  ) {
+  if (endpointOpacity <= MIN_ALPHA) {
     return;
   }
 
@@ -592,17 +593,27 @@ export function drawSynapse(
       edge,
       from,
       to,
-      _simCtx.time
+      simCtx.time
     );
 
   if (!geometry) {
     return;
   }
 
-  const energy = clamp(
-    edge.energy +
-    edge.pulse * 0.7
-  );
+  /*
+   * FOCUS FADE
+   *
+   * The simulation marks the currently focused neuron with
+   * neuron.isFocus. Any synapse connected to that neuron is
+   * faded slightly so the selected node becomes the visual
+   * center without completely destroying the connection.
+   */
+
+  const energy =
+    clamp(
+      edge.energy +
+      edge.pulse * 0.7
+    );
 
   const depth =
     Math.max(
@@ -616,15 +627,22 @@ export function drawSynapse(
       energy
     );
 
+  const isAboutSelected =
+    simCtx.focusId === "about";
+
+  const aboutFade =
+    isAboutSelected
+      ? 0.05
+      : 1;
+
   const opacity =
     clamp(
       edge.opacity *
-      endpointOpacity
+      endpointOpacity *
+      aboutFade
     );
 
-  if (
-    opacity <= MIN_ALPHA
-  ) {
+  if (opacity <= MIN_ALPHA) {
     return;
   }
 
@@ -761,7 +779,6 @@ export function drawSynapse(
    *
    * IMPORTANT:
    * Their position is fixed when idle. Only brightness pulses.
-   * This eliminates the old "rope is vibrating" illusion.
    */
   const particleCount =
     energy > 0.65
@@ -798,7 +815,7 @@ export function drawSynapse(
       0.55 +
       0.45 *
       Math.sin(
-        _simCtx.time * 0.002 +
+        simCtx.time * 0.002 +
         edge.seed * 21 +
         i * 2.8
       );
@@ -853,6 +870,11 @@ export function drawSignals(
   if (!signals.length) {
     return;
   }
+
+  const signalFade =
+    simCtx.focusId === "about"
+      ? 0.05
+      : 1;
 
   for (const signal of signals) {
     const edge =
@@ -977,7 +999,7 @@ export function drawSignals(
       `rgba(${color},${(
         0.50 +
         signal.energy * 0.35
-      )})`;
+      ) * signalFade})`;
 
     ctx.lineWidth =
       1.4 +
@@ -1003,11 +1025,9 @@ export function drawSignals(
       ctx,
       point.x,
       point.y,
-      12 +
-      signal.energy * 15,
+      12 + signal.energy * 15,
       color,
-      0.24 *
-      signal.energy
+      0.24 * signal.energy * signalFade
     );
 
     /*
@@ -1019,7 +1039,7 @@ export function drawSignals(
       `rgba(${WHITE},${(
         0.72 +
         signal.energy * 0.28
-      )})`;
+      ) * signalFade})`;
 
     ctx.arc(
       point.x,

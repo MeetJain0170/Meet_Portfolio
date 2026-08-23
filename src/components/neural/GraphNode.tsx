@@ -184,9 +184,22 @@ export default function GraphNode({
           style={{
             width: size * 2.5,
             height: size * 2.5,
+
+            // Lock the ring to the actual center of the nucleus
+            left: "50%",
+            top: size / 2,
+
             borderColor: `${color}65`,
             boxShadow: `0 0 16px ${color}28`,
+
+            // Center first, THEN the animation scales it
+            transform: "translate(-50%, -50%)",
+
+            transformOrigin: "center center",
+
             animation: "node-ring 2s ease-out infinite",
+
+            willChange: "transform, opacity",
           }}
         />
       )}
@@ -199,8 +212,16 @@ export default function GraphNode({
           style={{
             width: size + 11,
             height: size + 11,
+
+            // Exact center of the neural nucleus
+            left: "49%",
+            top: size / 2,
+
             borderColor: `${color}${active ? "aa" : "60"}`,
-            transform: "rotate(45deg)",
+
+            // Center first, then rotate
+            transform: "translate(-50%, -50%) rotate(45deg)",
+            animation: "action-diamond-spin 12s linear infinite",
             transition: "border-color .2s ease",
           }}
         />
@@ -233,12 +254,20 @@ export default function GraphNode({
           style={{
             width: size * 2.2,
             height: size * 2.2,
-            left: "25.5%",
-            top: "-15%",
+
+            // Lock perfectly to the nucleus center
+            left: "50%",
+            top: size / 2,
+
+            borderColor: `${color}35`,
+
+            // Center first, then pulse
             transform: "translate(-50%, -50%)",
             transformOrigin: "center center",
-            borderColor: `${color}35`,
-            animation: "node-ring 1s ease-out infinite",
+
+            animation: "core-pulse 2s ease-in-out infinite",
+
+            willChange: "transform, opacity",
           }}
         />
       )}

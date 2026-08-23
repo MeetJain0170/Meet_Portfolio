@@ -255,6 +255,11 @@ export function useNeuralSimulation(
             pointer,
             reducedMotion: propsRef.current.reducedMotion,
             isMobile: propsRef.current.isMobile,
+            focusId:
+                propsRef.current.focusId,
+            aboutActive:
+                propsRef.current.focusId === "about",
+
         });
 
         /* ---------------------------------------------------------- */

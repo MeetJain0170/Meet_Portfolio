@@ -176,6 +176,8 @@ export interface SimContext {
 
   reducedMotion: boolean;
   isMobile: boolean;
+  focusId: string | null;
+  aboutActive: boolean;
 }
 
 /**
