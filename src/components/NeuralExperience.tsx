@@ -518,6 +518,7 @@ export default function NeuralExperience() {
           <SystemHUD
             breadcrumb={breadcrumb}
             onReturn={resetToRoot}
+            aboutActive={focusId === "about"}
           />
         </div>
       )}
