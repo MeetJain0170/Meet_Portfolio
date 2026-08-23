@@ -262,7 +262,7 @@ export default function NeuralExperience() {
       Math.min(dims.w, dims.h) *
       (isMobile ? 0.18 : 0.20);
 
-    return layoutGraph(
+    const layout = layoutGraph(
       graphRoot,
       cx,
       cy,
@@ -271,10 +271,33 @@ export default function NeuralExperience() {
       dims.w,
       dims.h
     );
+
+    /*
+     * ABOUT NODE POSITION
+     *
+     * Move only the visual ABOUT node upward.
+     * The rest of the graph remains completely untouched.
+     *
+     * Because NeuralCanvas receives this same positions map,
+     * the synapse endpoint moves with the node automatically.
+     */
+    if (focusId === "about") {
+      const about = layout.get("about");
+
+      if (about) {
+        layout.set("about", {
+          ...about,
+          y: about.y - 120,
+        });
+      }
+    }
+
+    return layout;
   }, [
     dims,
     isMobile,
     activePath,
+    focusId,
   ]);
 
   /* ================================================================
@@ -354,10 +377,10 @@ export default function NeuralExperience() {
 
   const showTooltip = Boolean(
     hoveredNode &&
-      hoveredPos &&
-      hoveredNode.id !== "about" &&
-      (hoveredNode.meta?.length ||
-        hoveredNode.description)
+    hoveredPos &&
+    hoveredNode.id !== "about" &&
+    (hoveredNode.meta?.length ||
+      hoveredNode.description)
   );
 
   /* ================================================================
@@ -474,7 +497,7 @@ export default function NeuralExperience() {
             {focusId === "about" && (
               <AboutTokens
                 x={dims.w / 2}
-                y={dims.h / 2 + 80}
+                y={dims.h / 2-60} 
               />
             )}
 

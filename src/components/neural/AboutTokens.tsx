@@ -414,7 +414,7 @@ export default function AboutTokens({
         flex
         w-[min(1000px,92vw)]
         -translate-x-1/2
-        -translate-y-[35px]
+        -translate-y-0
 
         flex-col
         items-center
