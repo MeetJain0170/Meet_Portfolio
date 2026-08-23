@@ -221,10 +221,14 @@ export function updateSynapseSag(
    * This guarantees a single straight synapse with zero vibration.
    */
   if (!dragging) {
-    s.sagX = midX;
-    s.sagY = midY;
-    s.sagVX = 0;
-    s.sagVY = 0;
+    const returnSpeed = 0.035;
+
+    s.sagX += (midX - s.sagX) * returnSpeed;
+    s.sagY += (midY - s.sagY) * returnSpeed;
+
+    s.sagVX *= 0.9;
+    s.sagVY *= 0.9;
+
     return;
   }
 
@@ -249,11 +253,7 @@ export function updateSynapseSag(
     100
   );
 
-  const lag =
-    Math.min(
-      safeVelocity * 0.28,
-      32
-    );
+  const lag = Math.min(safeVelocity * 0.008, 10);
 
   let lagX = 0;
   let lagY = 0;
@@ -313,8 +313,8 @@ export function updateSynapseSag(
     32
   );
 
-  const stiffness = 0.010;
-  const damping = 0.72;
+  const stiffness = 0.0001;
+  const damping = 0.999;
 
   s.sagVX +=
     (targetX - s.sagX) *
@@ -514,10 +514,10 @@ export function fireNeuron(
   for (let i = 0; i < count; i++) {
     const edge =
       connected[
-        Math.floor(
-          Math.random() *
-          connected.length
-        )
+      Math.floor(
+        Math.random() *
+        connected.length
+      )
       ];
 
     if (!edge) {
@@ -590,10 +590,10 @@ export function spontaneousFire(
 
   const n =
     candidates[
-      Math.floor(
-        Math.random() *
-        candidates.length
-      )
+    Math.floor(
+      Math.random() *
+      candidates.length
+    )
     ];
 
   if (n) {
@@ -607,8 +607,8 @@ export function spontaneousFire(
       n.depth <= 1
         ? 0.75
         : 0.3 +
-          Math.random() *
-          0.45
+        Math.random() *
+        0.45
     );
   }
 }

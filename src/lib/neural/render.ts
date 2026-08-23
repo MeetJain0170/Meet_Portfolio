@@ -431,9 +431,7 @@ function getRopeControlPoints(
 
   // A very small, sign-preserving breathing motion — never enough to flip
   // which side the curve bends toward, just a bit of life.
-  const breathe = 1 + 0.06 * Math.sin(time * 0.0004 + bias * 4.2);
-
-  const lateral = bend * bias * breathe;
+    const lateral = bend * bias;
 
   // Departure tangent is exactly radial — no lateral term at all. The fiber
   // leaves the node dead-on along the line between the two centers; every
