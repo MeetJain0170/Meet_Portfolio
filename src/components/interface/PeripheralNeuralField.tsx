@@ -535,4 +535,4 @@ export default function PeripheralNeuralField({
             className="pointer-events-none fixed inset-0 z-[120] h-full w-full"
         />
     );
-}
+}   

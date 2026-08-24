@@ -5,6 +5,7 @@ import { GraphNodeDef } from "@/lib/graph";
 import { profile } from "@/data/profile";
 import SoundToggle from "./SoundToggle";
 import PeripheralNeuralField from "./PeripheralNeuralField";
+import NeuralAmbientField from "./NeuralAmbientField";
 
 function hashId(value: string) {
   let h = 0;
@@ -106,11 +107,17 @@ export default function SystemHUD({
         intensity={interactionIntensity}
       />
 
+      <NeuralAmbientField
+        reducedMotion={reducedMotion}
+        intensity={interactionIntensity}
+      />
+
       {/* AMBIENT HUD ATMOSPHERE */}
       <div
         aria-hidden="true"
         className="pointer-events-none fixed inset-0 z-[100] overflow-hidden"
       >
+        {/* Existing cyan corner glow */}
         <div
           className="absolute -left-32 -top-32 h-[420px] w-[420px] rounded-full"
           style={{
@@ -119,6 +126,8 @@ export default function SystemHUD({
             transition: "background 300ms ease",
           }}
         />
+
+        {/* Existing violet corner glow */}
         <div
           className="absolute -bottom-40 -right-32 h-[520px] w-[520px] rounded-full"
           style={{
@@ -127,17 +136,64 @@ export default function SystemHUD({
             transition: "background 300ms ease",
           }}
         />
+
+        {/* NEW — CENTRAL NEURAL AMBIENCE */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background: `
+        radial-gradient(
+          circle at 50% 48%,
+          rgba(0,229,255,0.045) 0%,
+          rgba(0,229,255,0.018) 22%,
+          transparent 52%
+        ),
+        radial-gradient(
+          circle at 62% 42%,
+          rgba(138,43,255,0.035) 0%,
+          rgba(138,43,255,0.015) 24%,
+          transparent 55%
+        )
+      `,
+          }}
+        />
+
+        {/* NEW — SOFT CYAN BLOOM */}
+        <div
+          className="absolute -left-[10%] top-[35%] h-[520px] w-[520px] rounded-full"
+          style={{
+            background:
+              "radial-gradient(circle, rgba(0,229,255,0.035) 0%, rgba(0,229,255,0.012) 35%, transparent 70%)",
+            filter: "blur(30px)",
+            animation: "ambient-bloom-a 18s ease-in-out infinite alternate",
+          }}
+        />
+
+        {/* NEW — SOFT VIOLET BLOOM */}
+        <div
+          className="absolute -right-[8%] top-[20%] h-[600px] w-[600px] rounded-full"
+          style={{
+            background:
+              "radial-gradient(circle, rgba(138,43,255,0.04) 0%, rgba(138,43,255,0.012) 38%, transparent 72%)",
+            filter: "blur(35px)",
+            animation: "ambient-bloom-b 22s ease-in-out infinite alternate",
+          }}
+        />
+
+        {/* Existing grid */}
         <div
           className="absolute inset-0"
           style={{
             opacity: 0.055,
             backgroundImage: `
-              linear-gradient(rgba(0,229,255,0.45) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(0,229,255,0.45) 1px, transparent 1px)
-            `,
+        linear-gradient(rgba(0,229,255,0.45) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,229,255,0.45) 1px, transparent 1px)
+      `,
             backgroundSize: "64px 64px",
           }}
         />
+
+        {/* Existing scanlines */}
         <div
           className="absolute inset-0"
           style={{
@@ -146,6 +202,8 @@ export default function SystemHUD({
               "repeating-linear-gradient(0deg, transparent 0px, transparent 3px, rgba(255,255,255,0.5) 4px)",
           }}
         />
+
+        {/* Existing vignette */}
         <div
           className="absolute inset-0"
           style={{
