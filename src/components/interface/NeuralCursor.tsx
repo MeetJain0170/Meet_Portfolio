@@ -1,7 +1,5 @@
 "use client";
-
-import { useEffect, useState } from "react";
-
+import { useEffect, useRef, useState } from "react";
 export default function NeuralCursor() {
   const [position, setPosition] = useState({
     x: -100,
@@ -61,15 +59,24 @@ export default function NeuralCursor() {
 
   return (
     <div
-      className={`neural-cursor ${
-        visible ? "neural-cursor-visible" : ""
-      } ${interactive ? "neural-cursor-interactive" : ""}`}
+      className={`neural-cursor ${visible ? "neural-cursor-visible" : ""
+        } ${interactive ? "neural-cursor-interactive" : ""}`}
       style={{
         left: position.x,
         top: position.y,
       }}
       aria-hidden="true"
     >
+      {/* Rotating outer signal arc */}
+      <span className="neural-cursor-rotating-ring">
+        <span className="neural-cursor-arc" />
+      </span>
+
+      {/* Orbiting information node */}
+      <span className="neural-cursor-orbit-track">
+        <span className="neural-cursor-orbit" />
+      </span>
+
       {/* Core */}
       <span className="neural-cursor-core" />
 
@@ -79,12 +86,6 @@ export default function NeuralCursor() {
       <span className="neural-cursor-bracket neural-cursor-bracket-bl" />
       <span className="neural-cursor-bracket neural-cursor-bracket-br" />
 
-      {/* Secondary targeting point */}
-      <span className="neural-cursor-orbit" />
-
-      {/* Very subtle crosshair */}
-      <span className="neural-cursor-line neural-cursor-line-x" />
-      <span className="neural-cursor-line neural-cursor-line-y" />
     </div>
   );
 }

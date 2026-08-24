@@ -692,6 +692,10 @@ export default function ActivationSequence({
      * ============================================================ */
     const glowCache = new Map<string, CanvasGradient>();
 
+    // PASS 2: cap expensive radial-gradient compositing per frame.
+    let glowCalls = 0;
+    const maxGlowCalls = isMobile ? 180 : 360;
+
     function getGlowGradient(
       x: number,
       y: number,
@@ -699,7 +703,7 @@ export default function ActivationSequence({
       color: string,
       alpha: number
     ) {
-      const key = `${Math.round(radius)}-${color}-${Math.round(alpha * 100)}`;
+      const key = `${radius | 0}-${color}-${(alpha * 100) | 0}`;
 
       let gradient = glowCache.get(key);
 
@@ -716,6 +720,7 @@ export default function ActivationSequence({
 
     function drawGlow(x: number, y: number, radius: number, color: string, alpha: number) {
       if (radius <= 0 || alpha < 0.015) return;
+      if (glowCalls++ >= maxGlowCalls) return;
 
       const gradient = getGlowGradient(x, y, radius, color, alpha);
 
@@ -743,7 +748,9 @@ export default function ActivationSequence({
       progress: number,
       storm: number,
       overload: number,
-      dt: number
+      dt: number,
+      waveRadii: Float32Array,
+      waveBands: Float32Array
     ) {
       core.x = cx;
       core.y = cy;
@@ -815,23 +822,26 @@ export default function ActivationSequence({
 
         const dx = node.anchorX - node.x;
         const dy = node.anchorY - node.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        const spring = distance > node.maxDrift ? 0.03 + (distance - node.maxDrift) * 0.002 : 0.008;
+        const distanceSq = dx * dx + dy * dy;
+        const maxDriftSq = node.maxDrift * node.maxDrift;
+        const distance = distanceSq > maxDriftSq ? Math.sqrt(distanceSq) : node.maxDrift;
+        const spring = distanceSq > maxDriftSq ? 0.03 + (distance - node.maxDrift) * 0.002 : 0.008;
         node.vx += dx * spring;
         node.vy += dy * spring;
 
         if (mouseNodeActive) {
           const mdx = node.x - mouseNodeX;
           const mdy = node.y - mouseNodeY;
-          const mdist = Math.sqrt(mdx * mdx + mdy * mdy);
+          const mouseDistSq = mdx * mdx + mdy * mdy;
 
-          if (mdist < 150 && mdist > 0.01) {
+          if (mouseDistSq < 22500 && mouseDistSq > 0.0001) {
+            const mdist = Math.sqrt(mouseDistSq);
             const force = (1 - mdist / 150) * 1.6;
             node.vx += (mdx / mdist) * force;
             node.vy += (mdy / mdist) * force;
           }
 
-          if (mdist < 42) {
+          if (mouseDistSq < 1764) {
             node.fireUntil = Math.max(node.fireUntil, elapsed + 140);
           }
         }
@@ -852,33 +862,36 @@ export default function ActivationSequence({
           node.y += (oy / od) * overload * 2.5;
         }
 
-        for (let w = 0; w < waves.length; w++) {
-          const wave = waves[w];
-          const waveRadius = (elapsed - wave.startElapsed) * wave.speed;
+        if (waves.length > 0) {
           const ndx = node.x - cx;
           const ndy = node.y - cy;
           const ndist = Math.sqrt(ndx * ndx + ndy * ndy);
-          const band = wave.speed * 20;
-          if (node.waveHitId !== w && ndist <= waveRadius && ndist > waveRadius - band) {
-            node.waveHitId = w;
-            node.fireUntil = Math.max(node.fireUntil, elapsed + 220);
 
-            const od = ndist || 1;
-            node.vx += (ndx / od) * 26;
-            node.vy += (ndy / od) * 26;
+          for (let w = 0; w < waves.length; w++) {
+            const waveRadius = waveRadii[w];
+            const band = waveBands[w];
 
-            if (Math.random() < 0.22 && pulses.length < maxPulses) {
-              const neighborEdges = adjacency.get(node) || [];
-              if (neighborEdges.length > 0) {
-                const next = neighborEdges[(Math.random() * neighborEdges.length) | 0];
-                pulses.push({
-                  edge: next,
-                  fromNode: node,
-                  progress: next.a === node ? 0 : 1,
-                  speed: 0.05 + Math.random() * 0.03,
-                  energy: 0.6,
-                  bright: true,
-                });
+            if (node.waveHitId !== w && ndist <= waveRadius && ndist > waveRadius - band) {
+              node.waveHitId = w;
+              node.fireUntil = Math.max(node.fireUntil, elapsed + 220);
+
+              const od = ndist || 1;
+              node.vx += (ndx / od) * 26;
+              node.vy += (ndy / od) * 26;
+
+              if (Math.random() < 0.22 && pulses.length < maxPulses) {
+                const neighborEdges = adjacency.get(node) || [];
+                if (neighborEdges.length > 0) {
+                  const next = neighborEdges[(Math.random() * neighborEdges.length) | 0];
+                  pulses.push({
+                    edge: next,
+                    fromNode: node,
+                    progress: next.a === node ? 0 : 1,
+                    speed: 0.05 + Math.random() * 0.03,
+                    energy: 0.6,
+                    bright: true,
+                  });
+                }
               }
             }
           }
@@ -1000,10 +1013,9 @@ export default function ActivationSequence({
       return { bx: (dx / (dist || 1)) * influence, by: (dy / (dist || 1)) * influence };
     }
 
-    function drawSignal(signal: Signal, whiteProgress: number) {
+    function drawSignal(signal: Signal, color: string) {
       const { bx, by } = bendFor(signal.edge);
       const { x, y } = curvedPoint(signal.edge.a, signal.edge.b, signal.edge.curveAmount, signal.progress, bx, by);
-      const color = colorTransition(whiteProgress);
       drawGlow(x, y, 8, color, 0.3);
       ctx.beginPath();
       ctx.fillStyle = `rgba(${color},0.95)`;
@@ -1011,12 +1023,12 @@ export default function ActivationSequence({
       ctx.fill();
     }
 
-    function drawPulse(pulse: Pulse, whiteProgress: number) {
+    function drawPulse(pulse: Pulse, color: string) {
       const { bx, by } = bendFor(pulse.edge);
       const { x, y } = curvedPoint(pulse.edge.a, pulse.edge.b, pulse.edge.curveAmount, clamp(pulse.progress, 0, 1), bx, by);
-      const color = pulse.bright ? COLORS.white : colorTransition(whiteProgress);
+      const pulseColor = pulse.bright ? COLORS.white : color;
       const boost = pulse.bright ? 1.5 : 1;
-      drawGlow(x, y, (14 * pulse.energy + 4) * boost, color, 0.45 * pulse.energy * boost);
+      drawGlow(x, y, (14 * pulse.energy + 4) * boost, pulseColor, 0.45 * pulse.energy * boost);
       ctx.beginPath();
       ctx.fillStyle = `rgba(${COLORS.white},${0.75 * pulse.energy + 0.15})`;
       ctx.arc(x, y, (1.4 + pulse.energy * 1.6) * boost, 0, Math.PI * 2);
@@ -1038,6 +1050,7 @@ export default function ActivationSequence({
       lastTs = ts;
 
       const elapsed = ts - start;
+      glowCalls = 0;
       const progress = clamp(elapsed / duration, 0, 1);
 
       const ignition = clamp(progress / 0.12, 0, 1);
@@ -1142,11 +1155,20 @@ export default function ActivationSequence({
         updateMouseCache();
       }
 
-      updateNodes(elapsed, progress, storm, overload, dt);
+      // Precompute wave geometry once per frame instead of once per node.
+      const waveRadii = new Float32Array(waves.length);
+      const waveBands = new Float32Array(waves.length);
+      for (let w = 0; w < waves.length; w++) {
+        waveRadii[w] = (elapsed - waves[w].startElapsed) * waves[w].speed;
+        waveBands[w] = waves[w].speed * 20;
+      }
+
+      updateNodes(elapsed, progress, storm, overload, dt, waveRadii, waveBands);
       maybeSpawnPulse(elapsed, dt, storm, overload);
       updatePulses(elapsed);
 
-      for (let i = 0; i < ambientParticles.length; i++) {
+      const particleStep = isMobile ? 1 : 2;
+      for (let i = 0; i < ambientParticles.length; i += particleStep) {
         const particle = ambientParticles[i];
         particle.x += particle.vx;
         particle.y += particle.vy;
@@ -1240,29 +1262,31 @@ export default function ActivationSequence({
             syncFlicker * syncPhase * 0.5);
 
         const { bx, by } = bendFor(edge);
-        const c0 = curvedPoint(edge.a, edge.b, edge.curveAmount, 0, bx, by);
+        const c0x = edge.a.x;
+        const c0y = edge.a.y;
+        const c1x = edge.b.x;
+        const c1y = edge.b.y;
         const cMid = curvedPoint(edge.a, edge.b, edge.curveAmount, 0.5, bx, by);
-        const c1 = curvedPoint(edge.a, edge.b, edge.curveAmount, 1, bx, by);
 
         const growEnd = visible < 1 ? visible : 1;
         const lineWidth = edge.width * (localFactor > 1 ? 1 + (localFactor - 1) * 0.6 : 1);
 
         if (edge.width > 0.6) {
           ctx.beginPath();
-          ctx.moveTo(c0.x, c0.y);
-          ctx.quadraticCurveTo(cMid.cx, cMid.cy, c1.x, c1.y);
+          ctx.moveTo(c0x, c0y);
+          ctx.quadraticCurveTo(cMid.cx, cMid.cy, c1x, c1y);
           ctx.strokeStyle = `rgba(${activeColor},${alpha * 0.2})`;
           ctx.lineWidth = lineWidth * 3;
           ctx.stroke();
         }
 
         ctx.beginPath();
-        ctx.moveTo(c0.x, c0.y);
+        ctx.moveTo(c0x, c0y);
         if (growEnd < 1) {
           const grown = curvedPoint(edge.a, edge.b, edge.curveAmount, growEnd, bx, by);
           ctx.quadraticCurveTo(cMid.cx, cMid.cy, grown.x, grown.y);
         } else {
-          ctx.quadraticCurveTo(cMid.cx, cMid.cy, c1.x, c1.y);
+          ctx.quadraticCurveTo(cMid.cx, cMid.cy, c1x, c1y);
         }
         ctx.strokeStyle = `rgba(${activeColor},${alpha})`;
         ctx.lineWidth = lineWidth;
@@ -1274,7 +1298,8 @@ export default function ActivationSequence({
         }
       }
 
-      for (let i = 0; i < signals.length; i++) {
+      const signalStep = isMobile ? 1 : 2;
+      for (let i = 0; i < signals.length; i += signalStep) {
         const signal = signals[i];
         if (!signal.edge.a.alive || !signal.edge.b.alive) continue;
         const activation = clamp((progress - signal.edge.a.birth) / 0.25, 0, 1);
@@ -1285,11 +1310,11 @@ export default function ActivationSequence({
           signal.progress = 0;
           if (Math.random() < 0.15) signal.direction = signal.direction === 1 ? -1 : 1;
         }
-        drawSignal(signal, whiteTransition);
+        drawSignal(signal, activeColor);
       }
 
       for (let i = 0; i < pulses.length; i++) {
-        drawPulse(pulses[i], whiteTransition);
+        drawPulse(pulses[i], activeColor);
       }
 
       for (let i = conduits.length - 1; i >= 0; i--) {
@@ -1362,7 +1387,11 @@ export default function ActivationSequence({
 
         const proximityBoost =
           mouseNodeActive
-            ? clamp(1 - Math.hypot(node.x - mouseNodeX, node.y - mouseNodeY) / 180, 0, 1) * 0.35
+            ? (() => {
+                const pdx = node.x - mouseNodeX;
+                const pdy = node.y - mouseNodeY;
+                return clamp(1 - Math.sqrt(pdx * pdx + pdy * pdy) / 180, 0, 1) * 0.35;
+              })()
             : 0;
 
         const radius =
@@ -1372,7 +1401,7 @@ export default function ActivationSequence({
           deathFade *
           node.localFactor;
 
-        const color = colorTransition(whiteTransition);
+        const color = activeColor;
         const brightness = appear * pulse * deathFade * node.localFactor + proximityBoost;
 
         if (isPrimary) {
@@ -1463,6 +1492,7 @@ export default function ActivationSequence({
 
       if (overload > 0) {
         const streakCount = isMobile ? 30 : 70;
+        const streakColor = activeColor;
         for (let i = 0; i < streakCount; i++) {
           const angle = (i / streakCount) * Math.PI * 2;
           const inner = 15 + ((Math.sin(elapsed * 0.012 + i) + 1) / 2) * 18;
@@ -1473,11 +1503,10 @@ export default function ActivationSequence({
           const x2 = cx + Math.cos(angle) * outer;
           const y2 = cy + Math.sin(angle) * outer;
 
-          const color = colorTransition(whiteTransition);
           ctx.beginPath();
           ctx.moveTo(x1, y1);
           ctx.lineTo(x2, y2);
-          ctx.strokeStyle = `rgba(${color},${overload * (0.04 + 0.13 * ((Math.sin(elapsed * 0.01 + i) + 1) / 2))})`;
+          ctx.strokeStyle = `rgba(${streakColor},${overload * (0.04 + 0.13 * ((Math.sin(elapsed * 0.01 + i) + 1) / 2))})`;
           ctx.lineWidth = 0.35 + ((Math.sin(i * 4.3) + 1) / 2) * 1.1;
           ctx.stroke();
         }
@@ -1487,7 +1516,10 @@ export default function ActivationSequence({
 
       ctx.restore();
 
-      if (progress < 1) {
+      // PASS 3: keep rendering through the handoff instead of freezing
+      // on the final frame. The terminal state gently breathes while
+      // the transition waits for the next screen.
+      if (progress < 1 || (!flashed && elapsed < duration + 500)) {
         animationFrame = requestAnimationFrame(frame);
       } else if (!flashed) {
         flashed = true;

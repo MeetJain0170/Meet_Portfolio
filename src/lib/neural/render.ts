@@ -28,6 +28,122 @@ const clamp = (value: number, min = 0, max = 1) =>
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
 /* -------------------------------------------------------------------------- */
+/* DYNAMIC INFORMATION COLORS                                                 */
+/* -------------------------------------------------------------------------- */
+
+function hslToRgbString(h: number, s: number, l: number): string {
+  const hue = ((h % 360) + 360) % 360;
+  const saturation = clamp(s);
+  const lightness = clamp(l);
+  const c = (1 - Math.abs(2 * lightness - 1)) * saturation;
+  const x = c * (1 - Math.abs(((hue / 60) % 2) - 1));
+  const m = lightness - c / 2;
+
+  let r = 0;
+  let g = 0;
+  let b = 0;
+
+  if (hue < 60) {
+    r = c; g = x;
+  } else if (hue < 120) {
+    r = x; g = c;
+  } else if (hue < 180) {
+    g = c; b = x;
+  } else if (hue < 240) {
+    g = x; b = c;
+  } else if (hue < 300) {
+    r = x; b = c;
+  } else {
+    r = c; b = x;
+  }
+
+  return (
+    `${Math.round((r + m) * 255)},` +
+    `${Math.round((g + m) * 255)},` +
+    `${Math.round((b + m) * 255)}`
+  );
+}
+
+/* Smoothly travels through the complete colour wheel. */
+function getInformationColor(
+  time: number,
+  seed: number,
+  progress: number
+): string {
+  const hue =
+    time * 0.018 +
+    seed * 137.5 +
+    progress * 95;
+
+  return hslToRgbString(hue, 0.82, 0.58);
+}
+
+/*
+ * Complementary hue + adaptive lightness.
+ *
+ * Bright information -> dark contrasting ripple.
+ * Dark information   -> bright contrasting ripple.
+ */
+function getContrastingRippleColor(
+  informationColor: string,
+  time: number,
+  seed: number
+): string {
+  const [r, g, b] = informationColor.split(",").map(Number);
+
+  if (
+    !Number.isFinite(r) ||
+    !Number.isFinite(g) ||
+    !Number.isFinite(b)
+  ) {
+    return "18,18,24";
+  }
+
+  const rr = r / 255;
+  const gg = g / 255;
+  const bb = b / 255;
+  const max = Math.max(rr, gg, bb);
+  const min = Math.min(rr, gg, bb);
+  const delta = max - min;
+
+  let hue = 0;
+
+  if (delta > 0) {
+    if (max === rr) {
+      hue = 60 * (((gg - bb) / delta) % 6);
+    } else if (max === gg) {
+      hue = 60 * ((bb - rr) / delta + 2);
+    } else {
+      hue = 60 * ((rr - gg) / delta + 4);
+    }
+  }
+
+  const lightness = (max + min) / 2;
+  const complementaryHue = hue + 180;
+
+  const contrastPhase =
+    0.5 +
+    0.5 *
+    Math.sin(time * 0.0017 + seed * 4.3);
+
+  const rippleLightness =
+    lightness > 0.72
+      ? 0.055 + contrastPhase * 0.035
+      : lightness < 0.30
+        ? 0.82 + contrastPhase * 0.08
+        : 0.16 + contrastPhase * 0.64;
+
+  const rippleSaturation =
+    lightness > 0.72 ? 0.12 : 0.78;
+
+  return hslToRgbString(
+    complementaryHue,
+    rippleSaturation,
+    rippleLightness
+  );
+}
+
+/* -------------------------------------------------------------------------- */
 /* COLOR                                                                      */
 /* -------------------------------------------------------------------------- */
 
@@ -431,7 +547,7 @@ function getRopeControlPoints(
 
   // A very small, sign-preserving breathing motion — never enough to flip
   // which side the curve bends toward, just a bit of life.
-    const lateral = bend * bias;
+  const lateral = bend * bias;
 
   // Departure tangent is exactly radial — no lateral term at all. The fiber
   // leaves the node dead-on along the line between the two centers; every
@@ -528,6 +644,227 @@ function buildRopePath(ctx: CanvasRenderingContext2D, geometry: RopeGeometry) {
   );
 }
 
+function drawInformationWaves(
+  ctx: CanvasRenderingContext2D,
+  geometry: RopeGeometry,
+  progress: number,
+  informationColor: string,
+  rippleColor: string,
+  alpha: number,
+  time: number,
+  seed: number,
+  particleRadius: number
+) {
+  /*
+   * CONTINUOUS ELASTIC INFORMATION TUBE
+   *
+   * The important difference from the previous version is that this function
+   * samples the COMPLETE Bézier edge from t=0 -> t=1.
+   *
+   * The two thin walls therefore start exactly at the first neuron, travel
+   * continuously along the existing synapse, inflate around the information
+   * particle, and collapse exactly into the second neuron.
+   *
+   *       start                         end
+   *         ●───────────────────────────●
+   *          \                         /
+   *           \_________  ●  ________/
+   *
+   * The deformation follows the particle's progress, so it never becomes a
+   * detached little arc.
+   */
+
+  const samples = Math.max(
+    28,
+    Math.min(64, Math.ceil(geometry.distance / 10))
+  );
+
+  /*
+   * Width of the moving deformation as a fraction of the complete edge.
+   * Larger particles get a slightly broader tube.
+   */
+  const waveWidth = clamp(
+    0.105 + particleRadius * 0.012,
+    0.105,
+    0.145
+  );
+
+  /*
+   * Particle size directly controls how much the tube inflates.
+   * Kept deliberately restrained so this reads as an information packet
+   * passing through an elastic membrane rather than a rope or spaceship.
+   */
+  const maxAmplitude =
+    1.15 + particleRadius * 1.35;
+
+  /*
+   * Very slow breathing. This is intentionally subtle.
+   */
+  const breathing =
+    0.94 +
+    0.06 *
+    Math.sin(
+      time * 0.00115 +
+      seed * 9.7
+    );
+
+  const amplitude =
+    maxAmplitude * breathing;
+
+  ctx.save();
+
+  ctx.lineWidth = 0.48;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.strokeStyle =
+    `rgba(${rippleColor},${alpha * 0.62})`;
+  ctx.shadowColor =
+    `rgba(${rippleColor},${alpha * 0.46})`;
+  ctx.shadowBlur = 2;
+
+  for (const side of [-1, 1]) {
+    ctx.beginPath();
+
+    for (let i = 0; i <= samples; i++) {
+      const t = i / samples;
+
+      const point = cubicPoint(
+        t,
+        geometry.startX,
+        geometry.startY,
+        geometry.control1X,
+        geometry.control1Y,
+        geometry.control2X,
+        geometry.control2Y,
+        geometry.endX,
+        geometry.endY
+      );
+
+      /*
+       * Calculate the tangent from neighbouring points on the same Bézier.
+       * This keeps the wave glued to curved synapses.
+       */
+      const epsilon = 1 / samples;
+
+      const ahead = cubicPoint(
+        Math.min(1, t + epsilon),
+        geometry.startX,
+        geometry.startY,
+        geometry.control1X,
+        geometry.control1Y,
+        geometry.control2X,
+        geometry.control2Y,
+        geometry.endX,
+        geometry.endY
+      );
+
+      const behind = cubicPoint(
+        Math.max(0, t - epsilon),
+        geometry.startX,
+        geometry.startY,
+        geometry.control1X,
+        geometry.control1Y,
+        geometry.control2X,
+        geometry.control2Y,
+        geometry.endX,
+        geometry.endY
+      );
+
+      const tangentX =
+        ahead.x - behind.x;
+
+      const tangentY =
+        ahead.y - behind.y;
+
+      const tangentLength =
+        Math.hypot(
+          tangentX,
+          tangentY
+        );
+
+      const tx =
+        tangentLength > 0
+          ? tangentX / tangentLength
+          : 1;
+
+      const ty =
+        tangentLength > 0
+          ? tangentY / tangentLength
+          : 0;
+
+      // Normal to the actual synapse at this point.
+      const nx = -ty;
+      const ny = tx;
+
+      /*
+       * Gaussian envelope centred on the moving particle.
+       *
+       * Far before/after the particle this approaches zero, so the wave
+       * becomes the original synapse. At the particle it reaches maximum
+       * inflation.
+       */
+      const distanceFromParticle =
+        (t - progress) / waveWidth;
+
+      const envelope =
+        Math.exp(
+          -distanceFromParticle *
+          distanceFromParticle *
+          1.55
+        );
+
+      /*
+       * Tiny phase-locked ripple. It travels with the particle rather than
+       * vibrating independently.
+       */
+      const ripple =
+        1 +
+        0.055 *
+        Math.sin(
+          (t - progress) * 28 +
+          time * 0.0012 +
+          seed
+        );
+
+      const displacement =
+        side *
+        amplitude *
+        envelope *
+        ripple;
+
+      const x =
+        point.x +
+        nx * displacement;
+
+      const y =
+        point.y +
+        ny * displacement;
+
+      if (i === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
+    }
+
+    ctx.stroke();
+  }
+
+  /*
+   * Extremely subtle centre highlight. This visually ties both walls to the
+   * underlying synapse instead of making them look like two separate ropes.
+   */
+  ctx.lineWidth = 0.22;
+  ctx.strokeStyle =
+    `rgba(${rippleColor},${alpha * 0.16})`;
+  ctx.shadowBlur = 0;
+
+  buildRopePath(ctx, geometry);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
 /* -------------------------------------------------------------------------- */
 /* INFORMATION PARTICLES                                                      */
 /*                                                                            */
@@ -563,11 +900,6 @@ function drawInformationParticles(
       edge.seed * 7.31 +
       i * 0.47;
 
-    /*
-     * Slow continuous movement.
-     *
-     * The modulo keeps the particle looping forever from start -> end.
-     */
     const speed =
       0.00028 +
       (edge.seed % 1) * 0.00010;
@@ -577,6 +909,34 @@ function drawInformationParticles(
         time * speed +
         phase
       ) % 1;
+      
+    /*
+     * Continuous hue-wheel movement: no discrete palette and no flashing.
+     */
+    const particleColor =
+      getInformationColor(
+        time,
+        edge.seed + i * 17.31,
+        progress
+      );
+
+    /*
+     * The ripple is deliberately complementary to the information packet.
+     * Its lightness also adapts, so bright packets get dark ripples and
+     * dark packets get bright ripples.
+     */
+    const rippleColor =
+      getContrastingRippleColor(
+        particleColor,
+        time,
+        edge.seed + i * 17.31
+      );
+
+    /*
+     * Slow continuous movement.
+     *
+     * The modulo keeps the particle looping forever from start -> end.
+     */
 
     const point =
       cubicPoint(
@@ -617,6 +977,33 @@ function drawInformationParticles(
       pulse *
       0.72;
 
+    /*
+    * Each information packet gets its own stable pseudo-random size.
+    * The value is deterministic, so it does not jitter between frames.
+    */
+    const particleRadius =
+      0.72 +
+      (
+        (
+          Math.sin(
+            edge.seed * 91.17 +
+            i * 37.41
+          ) + 1
+        ) * 0.5
+      ) * 0.93;
+
+    drawInformationWaves(
+      ctx,
+      geometry,
+      progress,
+      particleColor,
+      rippleColor,
+      alpha,
+      time,
+      edge.seed + i * 13.7,
+      particleRadius
+    );
+
     if (alpha <= 0.005) {
       continue;
     }
@@ -628,8 +1015,8 @@ function drawInformationParticles(
       ctx,
       point.x,
       point.y,
-      7,
-      color,
+      4.5 + particleRadius * 2.4,
+      particleColor,
       alpha * 0.42
     );
 
@@ -639,17 +1026,18 @@ function drawInformationParticles(
     ctx.beginPath();
 
     ctx.fillStyle =
-      `rgba(${color},${alpha})`;
+      `rgba(${particleColor},${alpha})`;
 
     ctx.shadowColor =
-      `rgba(${color},${alpha})`;
+      `rgba(${particleColor},${alpha})`;
 
-    ctx.shadowBlur = 5;
+    ctx.shadowBlur =
+      4 + particleRadius * 1.5;
 
     ctx.arc(
       point.x,
       point.y,
-      1.15,
+      particleRadius,
       0,
       TAU
     );
@@ -691,10 +1079,10 @@ function drawInformationParticles(
       ctx.beginPath();
 
       ctx.fillStyle =
-        `rgba(${color},${trailAlpha})`;
+        `rgba(${particleColor},${trailAlpha})`;
 
       ctx.shadowColor =
-        `rgba(${color},${trailAlpha})`;
+        `rgba(${particleColor},${trailAlpha})`;
 
       ctx.shadowBlur = 3;
 
@@ -801,11 +1189,25 @@ export function drawSynapse(
   // Connection sockets — reinforce the attachment point itself.
   const socketAlpha = (0.14 + energy * 0.18) * opacity;
 
-  drawGlow(ctx, geometry.startX, geometry.startY, 3.2 + energy * 1.8, color, socketAlpha);
-  drawGlow(ctx, geometry.endX, geometry.endY, 3.2 + energy * 1.8, color, socketAlpha);
+  drawGlow(
+    ctx,
+    geometry.startX,
+    geometry.startY,
+    3.2 + energy * 1.8,
+    color,
+    socketAlpha
+  );
 
-  // Decorative synaptic particles: 0–2 at idle, kept subtle so the moving
-  // signal (drawSignals) is the thing that actually draws the eye.
+  drawGlow(
+    ctx,
+    geometry.endX,
+    geometry.endY,
+    3.2 + energy * 1.8,
+    color,
+    socketAlpha
+  );
+
+  // Decorative synaptic particles.
   const particleCount = energy > 0.65 ? 2 : energy > 0.3 ? 1 : 0;
 
   for (let i = 0; i < particleCount; i++) {
@@ -824,17 +1226,36 @@ export function drawSynapse(
     );
 
     const pulse =
-      0.55 + 0.45 * Math.sin(simCtx.time * 0.002 + edge.seed * 21 + i * 2.8);
+      0.55 +
+      0.45 * Math.sin(
+        simCtx.time * 0.002 +
+        edge.seed * 21 +
+        i * 2.8
+      );
 
     const alpha = (0.2 + energy * 0.28) * pulse * opacity;
 
-    drawGlow(ctx, point.x, point.y, 3 + energy * 3, color, alpha * 0.5);
+    drawGlow(
+      ctx,
+      point.x,
+      point.y,
+      3 + energy * 3,
+      color,
+      alpha * 0.5
+    );
 
     ctx.beginPath();
     ctx.fillStyle = `rgba(${color},${alpha})`;
-    ctx.arc(point.x, point.y, 0.9 + energy * 0.65, 0, TAU);
+    ctx.arc(
+      point.x,
+      point.y,
+      0.9 + energy * 0.65,
+      0,
+      TAU
+    );
     ctx.fill();
   }
+
   /*
    * Continuous information flow.
    */
